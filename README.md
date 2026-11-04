@@ -1,116 +1,17 @@
 # swift-environment
 
-![Development Status](https://img.shields.io/badge/status-active--development-blue.svg)
+Use this package when your code reads or sets process environment variables, wants a test or task to see different values without changing the real environment, or loads a dotenv file. Start from `Environment.read`, `Environment.write` and `Environment.withOverlay(_:perform:)`, and from `Environment.Snapshot` and `Environment.Dotenv` for values held apart from the process. `Environment Core` has the snapshot and dotenv types without any process access. If you want environment values as an injected dependency, use swift-environment-dependencies.
 
-Process environment variable access with thread-safe reads and writes, immutable snapshots, and task-local overlays for isolated overrides.
+## Laws
 
----
-
-## Key Features
-
-- **Process environment access** — read a single variable, enumerate all variables, or check presence with `Environment.read(...)`, `Environment.read.all()`, and `Environment.read.isSet(...)`.
-- **Thread-safe reads and writes** — every operation is serialized through a process-global mutex, so concurrent callers that use this API never race on `getenv` / `setenv`.
-- **Task-local overlays** — `Environment.withOverlay([...])` layers overrides onto the current scope and its child tasks without mutating real process state, giving each test or task an isolated view.
-- **Immutable snapshots** — `Environment.Snapshot` captures the environment at a point in time; `merge` derives modified copies where a `nil` value removes a key, ready to hand to a spawned child process.
-- **Typed throws** — writes fail with a typed `Kernel.Environment.Error`, so no `any Error` crosses the API surface.
-- **Windows-aware enumeration** — `Environment.read.all()` automatically excludes Windows' internal `=`-prefixed pseudo-variables.
-
----
-
-## Quick Start
-
-`Environment.withOverlay` layers override values onto a scope and its child tasks without touching real process state — so a test or task can run against a modified environment while concurrent work, and the live process, see the original values. Doing this with raw `setenv` mutates global state and is not safe across concurrent callers.
-
-```swift
-import Environment
-
-// Reads hit the real process environment and are thread-safe.
-let realLevel = Environment.read("LOG_LEVEL")          // e.g. nil
-
-// withOverlay layers values on top for a scope, without mutating
-// global process state. The overlay is task-local, so concurrent work
-// and the real environment are unaffected.
-let scopedLevel = Environment.withOverlay(["LOG_LEVEL": "debug"]) {
-    Environment.task.read("LOG_LEVEL")                 // "debug" — the overlay wins
-}
-
-print(realLevel ?? "unset", scopedLevel ?? "unset")    // unset debug
-```
-
-To build an environment for a spawned child process, snapshot the current state and derive a modified copy. A `nil` value removes a key:
-
-```swift
-import Environment
-
-let base = Environment.Snapshot.current()
-let childEnvironment = base.merge([
-    "LOG_LEVEL": "debug",   // set
-    "TMPDIR": nil           // remove
-])
-```
-
----
-
-## Installation
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/swift-compositions/swift-environment.git", branch: "main")
-]
-```
-
-```swift
-.target(
-    name: "YourTarget",
-    dependencies: [
-        .product(name: "Environment", package: "swift-environment")
-    ]
-)
-```
-
-Requires Swift 6.3.1 and macOS 26 / iOS 26 / tvOS 26 / watchOS 26 / visionOS 26.
-
----
-
-## Error Handling
-
-Parsing a dotenv document throws a typed `Environment.Dotenv.Error`; every case
-carries the 1-based physical line it was detected on:
-
-```
-Environment.Dotenv.Error
-├── .invalidKey(line:)          // key is empty or begins with a non-key byte
-├── .missingSeparator(line:)    // a key line has no `=` (or trailing garbage)
-├── .unterminatedQuote(line:)   // an opened quote never closed before EOF
-└── .invalidEscape(line:)       // `\` in a double-quoted value followed by an
-                                //   unsupported byte
-```
-
-```swift
-do {
-    let dotenv = try Environment.Dotenv(parsing: text)
-    _ = dotenv
-} catch .invalidKey(let line) {
-    _ = line
-} catch .missingSeparator(let line) {
-    _ = line
-} catch .unterminatedQuote(let line) {
-    _ = line
-} catch .invalidEscape(let line) {
-    _ = line
-}
-```
-
-Process-environment reads surface a separate typed `Kernel.Environment.Error`.
-
----
-
-## Community
-
-<!-- BEGIN: discussion -->
-*Discussion thread will be created at first public release.*
-<!-- END: discussion -->
-
-## License
-
-Apache 2.0. See [LICENSE](LICENSE.md).
+- Every read and write through this package takes one process-wide lock, so its callers never race on the environment. Code that calls the system functions directly is not covered.
+- `Environment.read.all()` decodes names and values lossily: bytes that aren't valid UTF-8 become U+FFFD instead of trapping.
+- `Environment.withOverlay(_:perform:)` changes what `Environment.task` reads in that scope and in its child tasks. `Environment.read` and other tasks still see the real environment. An overlay can add or replace values but can't unset one, and an inner overlay replaces the outer one rather than adding to it.
+- `Environment.Snapshot.current()` copies the real environment. `Environment.Snapshot.effective()` copies it with the current overlay applied.
+- `Environment.write` overwrites an existing value. `Environment.Write.set(_:to:overwrite:)` with `overwrite` false leaves an existing value in place.
+- `Environment.Snapshot.bool(_:)` reads `1`, `true`, `yes` and `on` as true and `0`, `false`, `no` and `off` as false, ignoring case. Anything else is nil. `Environment.Snapshot.int(_:)` takes digits only, without surrounding spaces. `Environment.Snapshot.url(_:)` returns the text as it is, unchecked.
+- Merging into a snapshot sets each key with a value and removes each key whose value is nil.
+- `Environment.Dotenv.init(parsing:)` skips blank lines and lines starting with `#`, accepts an `export ` prefix, and normalizes CRLF line endings. A key starts with a letter or underscore and continues with letters, digits, underscores, dots and hyphens. Spaces around the key and around an unquoted value are trimmed.
+- An unquoted value runs to the end of the line, `#` included. A double-quoted value understands `\n`, `\r`, `\t`, `\\` and `\"` and refuses any other escape. A single-quoted value is taken literally. Both quoted forms may span lines, and after the closing quote only a comment may follow.
+- Variables in values are not expanded. When a key appears twice, the later value wins.
+- A parse error carries the line on which the record starts, except an invalid escape, which carries the line of the escape.
