@@ -48,7 +48,8 @@ let package = Package(
                 "Environment"
             ]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )
 
 for target in package.targets where ![.system, .binary, .plugin, .macro].contains(target.type) {
