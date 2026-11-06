@@ -2,7 +2,9 @@ import Environment
 import Kernel
 import Testing
 
-extension Environment {
+enum `Environment Tests` {}
+
+extension `Environment Tests` {
     @Suite
     struct Test {
         @Test

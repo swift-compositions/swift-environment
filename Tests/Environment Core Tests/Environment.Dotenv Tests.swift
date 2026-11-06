@@ -1,7 +1,9 @@
 import Environment_Core
 import Testing
 
-extension Environment.Dotenv {
+enum `Environment.Dotenv Tests` {}
+
+extension `Environment.Dotenv Tests` {
     @Suite
     struct Test {
         @Test
