@@ -30,7 +30,7 @@ let package = Package(
         .target(
             name: "Environment",
             dependencies: [
-                "Environment Core",
+                .target(name: "Environment Core"),
                 .product(name: "Kernel", package: "swift-kernel"),
                 .product(name: "Strings", package: "swift-strings"),
             ],
@@ -39,13 +39,13 @@ let package = Package(
         .testTarget(
             name: "Environment Core Tests",
             dependencies: [
-                "Environment Core"
+                .target(name: "Environment Core")
             ]
         ),
         .testTarget(
             name: "Environment Tests",
             dependencies: [
-                "Environment"
+                .target(name: "Environment")
             ]
         ),
     ],
