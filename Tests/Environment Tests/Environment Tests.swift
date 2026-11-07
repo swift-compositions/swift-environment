@@ -73,7 +73,7 @@ extension `Environment Tests` {
             } catch {}
             #expect(Environment.read(testName) == nil)
 
-            try await Environment.withOverlay([testName: "overlay_value"]) {
+            Environment.withOverlay([testName: "overlay_value"]) {
 
                 #expect(Environment.task.read(testName) == "overlay_value")
 
