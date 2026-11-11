@@ -1,11 +1,12 @@
 public import Environment_Core
+internal import Synchronization
+
 #if os(WASI)
     internal import ISO_9899
 #else
     internal import Kernel
     internal import Strings
 #endif
-internal import Synchronization
 
 extension Environment {
 
