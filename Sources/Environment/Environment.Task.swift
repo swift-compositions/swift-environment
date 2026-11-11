@@ -31,16 +31,6 @@ extension Environment.Task {
         return Environment.read(name)
     }
 
-    public func all() -> [Swift.String: Swift.String] {
-        var result = Environment.read.all()
-        if let overlay = Environment.overlay {
-            for (key, value) in overlay.values {
-                result[key] = value
-            }
-        }
-        return result
-    }
-
     public func isSet(_ name: Swift.String) -> Bool {
         if let overlay = Environment.overlay, overlay.values[name] != nil {
             return true
@@ -48,20 +38,37 @@ extension Environment.Task {
         return Environment.read.isSet(name)
     }
 
-    public func effective() -> Environment.Snapshot {
-        var result = Environment.Snapshot.current()
-        if let overlay = Environment.overlay {
-            for (key, value) in overlay.values {
-                result.values[key] = value
-            }
-        }
-        return result
-    }
-
     public func overlay() -> Environment.Snapshot? {
         Environment.overlay
     }
 }
+
+#if !os(WASI)
+
+    extension Environment.Task {
+
+        public func all() -> [Swift.String: Swift.String] {
+            var result = Environment.read.all()
+            if let overlay = Environment.overlay {
+                for (key, value) in overlay.values {
+                    result[key] = value
+                }
+            }
+            return result
+        }
+
+        public func effective() -> Environment.Snapshot {
+            var result = Environment.Snapshot.current()
+            if let overlay = Environment.overlay {
+                for (key, value) in overlay.values {
+                    result.values[key] = value
+                }
+            }
+            return result
+        }
+    }
+
+#endif
 
 extension Environment {
 

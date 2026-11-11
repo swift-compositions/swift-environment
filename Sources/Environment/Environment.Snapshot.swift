@@ -1,12 +1,16 @@
-public import Environment_Core
+#if !os(WASI)
 
-extension Environment.Snapshot {
+    public import Environment_Core
 
-    public static func current() -> Self {
-        Self(Environment.read.all())
+    extension Environment.Snapshot {
+
+        public static func current() -> Self {
+            Self(Environment.read.all())
+        }
+
+        public static func effective() -> Self {
+            Environment.task.effective()
+        }
     }
 
-    public static func effective() -> Self {
-        Environment.task.effective()
-    }
-}
+#endif

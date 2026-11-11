@@ -20,6 +20,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/swift-compositions/swift-kernel.git", branch: "main"),
         .package(url: "https://github.com/swift-compositions/swift-strings.git", branch: "main"),
+        .package(url: "https://github.com/swift-iso/swift-iso-9899.git", branch: "main"),
     ],
     targets: [
         .target(
@@ -31,8 +32,17 @@ let package = Package(
             name: "Environment",
             dependencies: [
                 .target(name: "Environment Core"),
-                .product(name: "Kernel", package: "swift-kernel"),
-                .product(name: "Strings", package: "swift-strings"),
+                .product(
+                    name: "Kernel",
+                    package: "swift-kernel",
+                    condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .windows])
+                ),
+                .product(
+                    name: "Strings",
+                    package: "swift-strings",
+                    condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .windows])
+                ),
+                .product(name: "ISO 9899", package: "swift-iso-9899", condition: .when(platforms: [.wasi])),
             ],
             path: "Sources/Environment"
         ),
